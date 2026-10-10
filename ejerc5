@@ -1,0 +1,265 @@
+#include <iostream>
+
+using namespace std;
+
+class ConjuntoListaOrdenada {
+private:
+    struct Nodo {
+        int dato;
+        Nodo* sig;
+        Nodo(int val) : dato(val), sig(nullptr) {}
+    };
+
+    Nodo* head;
+
+    // Inserción ordenada sin duplicados (mantiene la propiedad de conjunto)
+    void insertarOrdenadoPrivado(Nodo*& nuevaHead, int val) {
+        Nodo* nuevo = new Nodo(val);
+        if (!nuevaHead || val < nuevaHead->dato) {
+            nuevo->sig = nuevaHead;
+            nuevaHead = nuevo;
+            return;
+        }
+        if (val == nuevaHead->dato) {
+            delete nuevo;
+            return;
+        }
+
+        Nodo* actual = nuevaHead;
+        while (actual->sig && actual->sig->dato < val) {
+            actual = actual->sig;
+        }
+
+        if (actual->sig && actual->sig->dato == val) {
+            delete nuevo;
+        } else {
+            nuevo->sig = actual->sig;
+            actual->sig = nuevo;
+        }
+    }
+
+public:
+    ConjuntoListaOrdenada() : head(nullptr) {}
+
+    // Destructor automático
+    ~ConjuntoListaOrdenada() {
+        liberar();
+    }
+
+    void liberar() {
+        Nodo* actual = head;
+        while (actual != nullptr) {
+            Nodo* siguiente = actual->sig;
+            delete actual;
+            actual = siguiente;
+        }
+        head = nullptr;
+    }
+
+    void insertar(int val) {
+        insertarOrdenadoPrivado(head, val);
+    }
+
+    void mostrar() const {
+        Nodo* actual = head;
+        cout << "{ ";
+        while (actual != nullptr) {
+            cout << actual->dato;
+            if (actual->sig != nullptr) cout << ", ";
+            actual = actual->sig;
+        }
+        cout << " }" << endl;
+    }
+
+    // ==========================================
+    // OPERACIONES PRINCIPALES O(n + m)
+    // ==========================================
+
+    ConjuntoListaOrdenada obtenerUnion(const ConjuntoListaOrdenada& otro) const {
+        ConjuntoListaOrdenada resultado;
+        Nodo* p = this->head;
+        Nodo* q = otro.head;
+
+        while (p != nullptr && q != nullptr) {
+            if (p->dato < q->dato) {
+                resultado.insertar(p->dato);
+                p = p->sig;
+            } else if (p->dato > q->dato) {
+                resultado.insertar(q->dato);
+                q = q->sig;
+            } else {
+                resultado.insertar(p->dato);
+                p = p->sig;
+                q = q->sig;
+            }
+        }
+
+        while (p != nullptr) {
+            resultado.insertar(p->dato);
+            p = p->sig;
+        }
+
+        while (q != nullptr) {
+            resultado.insertar(q->dato);
+            q = q->sig;
+        }
+
+        return resultado;
+    }
+
+    ConjuntoListaOrdenada obtenerInterseccion(const ConjuntoListaOrdenada& otro) const {
+        ConjuntoListaOrdenada resultado;
+        Nodo* p = this->head;
+        Nodo* q = otro.head;
+
+        while (p != nullptr && q != nullptr) {
+            if (p->dato < q->dato) {
+                p = p->sig;
+            } else if (p->dato > q->dato) {
+                q = q->sig;
+            } else {
+                resultado.insertar(p->dato);
+                p = p->sig;
+                q = q->sig;
+            }
+        }
+
+        return resultado;
+    }
+
+    ConjuntoListaOrdenada obtenerDiferencia(const ConjuntoListaOrdenada& otro) const {
+        ConjuntoListaOrdenada resultado;
+        Nodo* p = this->head;
+        Nodo* q = otro.head;
+
+        while (p != nullptr && q != nullptr) {
+            if (p->dato < q->dato) {
+                resultado.insertar(p->dato);
+                p = p->sig;
+            } else if (p->dato > q->dato) {
+                q = q->sig;
+            } else {
+                p = p->sig;
+                q = q->sig;
+            }
+        }
+
+        while (p != nullptr) {
+            resultado.insertar(p->dato);
+            p = p->sig;
+        }
+
+        return resultado;
+    }
+
+    // ==========================================
+    // VARIANTE: AGREGAR DIFERENCIA SIMÉTRICA (A Δ B)
+    // Elementos que están en A o en B, pero no en ambos: (A - B) U (B - A)
+    // ==========================================
+    ConjuntoListaOrdenada obtenerDiferenciaSimetrica(const ConjuntoListaOrdenada& otro) const {
+        ConjuntoListaOrdenada resultado;
+        Nodo* p = this->head;
+        Nodo* q = otro.head;
+
+        while (p != nullptr && q != nullptr) {
+            if (p->dato < q->dato) {
+                resultado.insertar(p->dato);
+                p = p->sig;
+            } else if (p->dato > q->dato) {
+                resultado.insertar(q->dato);
+                q = q->sig;
+            } else {
+                // Si son iguales, están en ambos, por lo que se omiten en la diferencia simétrica
+                p = p->sig;
+                q = q->sig;
+            }
+        }
+
+        while (p != nullptr) {
+            resultado.insertar(p->dato);
+            p = p->sig;
+        }
+
+        while (q != nullptr) {
+            resultado.insertar(q->dato);
+            q = q->sig;
+        }
+
+        return resultado;
+    }
+
+    // ==========================================
+    // VARIANTE: UNIÓN DESTRUCTIVA REUTILIZANDO NODOS
+    // (Modifica directamente la lista actual consumiendo los nodos de la otra)
+    // ==========================================
+    void unionDestructiva(ConjuntoListaOrdenada& otro) {
+        Nodo* actualThis = this->head;
+        Nodo* prevThis = nullptr;
+        Nodo* actualOtro = otro.head;
+        
+        // Desvinculamos la cabeza de 'otro' para que quede vacío al terminar
+        otro.head = nullptr; 
+
+        while (actualOtro != nullptr) {
+            Nodo* sigOtro = actualOtro->sig;
+
+            // Lógica para reencadenar o eliminar duplicados in-situ
+            if (!actualThis || actualOtro->dato < actualThis->dato) {
+                actualOtro->sig = actualThis;
+                if (prevThis) prevThis->sig = actualOtro;
+                else this->head = actualOtro;
+                prevThis = actualOtro;
+                actualOtro = sigOtro;
+            } 
+            else if (actualOtro->dato == actualThis->dato) {
+                // Duplicado: se elimina el nodo sobrante de 'otro'
+                delete actualOtro;
+                actualOtro = sigOtro;
+            } 
+            else {
+                prevThis = actualThis;
+                actualThis = actualThis->sig;
+            }
+        }
+    }
+
+    // ==========================================
+    // VARIANTE: PERMITIR LISTAS INICIALMENTE DESORDENADAS (Sin STL)
+    // Indicación conceptual: Si permitiera desordenadas, se debería aplicar 
+    // un algoritmo de ordenamiento interno (ej. Mergesort para listas) antes de operar.
+    // ==========================================
+};
+
+int main() {
+    ConjuntoListaOrdenada A, B;
+    int n, val;
+
+    cout << "--- INGRESO DE DATOS PARA A ---" << endl;
+    cout << "Cuantos elementos desea ingresar?: ";
+    cin >> n;
+    for (int i = 0; i < n; i++) {
+        cout << "Elemento " << i + 1 << ": ";
+        cin >> val;
+        A.insertar(val);
+    }
+
+    cout << "\n--- INGRESO DE DATOS PARA B ---" << endl;
+    cout << "Cuantos elementos desea ingresar?: ";
+    cin >> n;
+    for (int i = 0; i < n; i++) {
+        cout << "Elemento " << i + 1 << ": ";
+        cin >> val;
+        B.insertar(val);
+    }
+
+    cout << "\nConjunto A: ";
+    A.mostrar();
+    cout << "Conjunto B: ";
+    B.mostrar();
+
+    ConjuntoListaOrdenada simetrica = A.obtenerDiferenciaSimetrica(B);
+    cout << "Diferencia Simetrica (A Δ B): ";
+    simetrica.mostrar();
+
+    return 0;
+}
